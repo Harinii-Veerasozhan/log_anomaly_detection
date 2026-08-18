@@ -1,0 +1,4 @@
+data/raw/
+data/processed/
+*.db
+__pycache__/
