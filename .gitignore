@@ -1,4 +1,9 @@
 data/raw/
 data/processed/
+data/synthetic/*.log
 *.db
+*.pkl
 __pycache__/
+*.pyc
+venv/
+.env

@@ -1,18 +1,13 @@
 """
 Synthetic IT System Log Generator
 ----------------------------------
-Continuously writes realistic-looking log lines to a text file, simulating
-a real server. Most of the time it writes "normal" activity, but you can
-trigger anomalies on demand (great for live demos) or let it inject them
-randomly (great for training/testing your detection models).
+Writes realistic log lines continuously to data/synthetic/system.log.
+Most lines are "normal" activity; anomalies are injected either randomly
+(for training data) or on-demand (for live demos).
 
-Usage:
-    python log_generator.py                     # normal random mode
-    python log_generator.py --demo               # interactive demo mode (press keys to trigger anomalies)
-
-Output:
-    Appends lines to logs/system.log in the format:
-    2026-08-18 10:32:15 | Server-1 | INFO | CPU=42% | MEM=55% | logins_failed=0 | resp_ms=120 | msg=...
+Run:
+    python ingestion/log_generator.py                # normal random mode
+    python ingestion/log_generator.py --demo          # interactive demo mode
 """
 
 import time
@@ -22,13 +17,11 @@ import threading
 from datetime import datetime
 from pathlib import Path
 
-LOG_DIR = Path(__file__).parent / "logs"
-LOG_DIR.mkdir(exist_ok=True)
-LOG_FILE = LOG_DIR / "system.log"
+LOG_FILE = Path(__file__).resolve().parent.parent / "data" / "synthetic" / "system.log"
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 SERVERS = ["Server-1", "Server-2", "Server-3"]
 
-# Baseline "normal" ranges — your detection model should learn these as normal
 NORMAL = {
     "cpu": (20, 45),
     "mem": (30, 60),
@@ -37,19 +30,16 @@ NORMAL = {
     "error_count": (0, 1),
 }
 
-# Shared state so anomalies can be triggered live from another thread (demo mode)
 active_anomaly = {"type": None, "until": 0}
 
 
 def inject_anomaly(kind: str, duration_sec: int = 20):
-    """Trigger an anomaly for a set duration. Call this from demo mode or randomly."""
     active_anomaly["type"] = kind
     active_anomaly["until"] = time.time() + duration_sec
     print(f"\n>>> ANOMALY INJECTED: {kind} (lasting {duration_sec}s)\n")
 
 
 def get_current_metrics():
-    """Generate one log entry's worth of metrics, applying an anomaly if active."""
     now = time.time()
     anomaly_active = active_anomaly["type"] and now < active_anomaly["until"]
     kind = active_anomaly["type"] if anomaly_active else None
@@ -77,9 +67,6 @@ def get_current_metrics():
         resp_ms = random.uniform(2000, 6000)
         msg = "response time degraded under load"
 
-    if not anomaly_active and cpu > NORMAL["cpu"][1]:
-        cpu = random.uniform(*NORMAL["cpu"])  # clamp back to normal safety
-
     return {
         "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "server": random.choice(SERVERS),
@@ -93,12 +80,12 @@ def get_current_metrics():
     }
 
 
-def format_line(entry: dict) -> str:
+def format_line(e: dict) -> str:
     return (
-        f"{entry['timestamp']} | {entry['server']} | {entry['level']} | "
-        f"CPU={entry['cpu']}% | MEM={entry['mem']}% | "
-        f"logins_failed={entry['failed_logins']} | resp_ms={entry['resp_ms']} | "
-        f"errors={entry['error_count']} | msg={entry['msg']}"
+        f"{e['timestamp']} | {e['server']} | {e['level']} | "
+        f"CPU={e['cpu']}% | MEM={e['mem']}% | "
+        f"logins_failed={e['failed_logins']} | resp_ms={e['resp_ms']} | "
+        f"errors={e['error_count']} | msg={e['msg']}"
     )
 
 
@@ -114,7 +101,6 @@ def write_loop(interval_sec: float, random_anomalies: bool):
             f.flush()
             print(line)
 
-            # Occasionally trigger a random anomaly if enabled (good for model training data)
             if random_anomalies and tick % 40 == 0 and random.random() < 0.5:
                 inject_anomaly(random.choice(
                     ["cpu_spike", "mem_leak", "failed_logins", "error_burst", "traffic_spike"]
@@ -125,7 +111,6 @@ def write_loop(interval_sec: float, random_anomalies: bool):
 
 
 def demo_control_loop():
-    """Lets you type a command to trigger an anomaly live during a demo."""
     options = {
         "1": ("cpu_spike", "CPU spike"),
         "2": ("mem_leak", "Memory leak"),
@@ -147,17 +132,17 @@ def demo_control_loop():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--demo", action="store_true", help="Interactive demo mode: trigger anomalies on command")
-    parser.add_argument("--interval", type=float, default=1.0, help="Seconds between log lines")
-    parser.add_argument("--no-random", action="store_true", help="Disable automatic random anomalies")
+    parser.add_argument("--demo", action="store_true")
+    parser.add_argument("--interval", type=float, default=1.0)
+    parser.add_argument("--no-random", action="store_true")
     args = parser.parse_args()
 
-    writer_thread = threading.Thread(
+    t = threading.Thread(
         target=write_loop,
         args=(args.interval, not args.demo and not args.no_random),
         daemon=True,
     )
-    writer_thread.start()
+    t.start()
 
     if args.demo:
         demo_control_loop()
