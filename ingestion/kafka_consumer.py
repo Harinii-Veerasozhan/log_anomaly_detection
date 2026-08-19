@@ -10,9 +10,10 @@ Run standalone to test:
 """
 
 import json
+import os
 from confluent_kafka import Consumer
 
-KAFKA_BOOTSTRAP = "localhost:9092"
+KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "localhost:9092")
 TOPIC = "system-logs"
 GROUP_ID = "log-anomaly-detector"
 

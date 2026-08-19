@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Log Anomaly PostgreSQL",
+      "Group": "Log Anomaly Detection",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "anomalies",
+      "Username": "loganomaly",
+      "SSLMode": "prefer",
+      "Shared": true
+    }
+  }
+}

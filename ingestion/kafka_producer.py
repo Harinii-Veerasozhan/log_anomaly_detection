@@ -15,10 +15,11 @@ import random
 import json
 import argparse
 import threading
+import os
 from datetime import datetime
 from confluent_kafka import Producer
 
-KAFKA_BOOTSTRAP = "localhost:9092"
+KAFKA_BOOTSTRAP = os.environ.get("KAFKA_BOOTSTRAP", "localhost:9092")
 TOPIC = "system-logs"
 
 producer = Producer({"bootstrap.servers": KAFKA_BOOTSTRAP})

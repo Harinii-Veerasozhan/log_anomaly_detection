@@ -8,14 +8,15 @@ Install first: pip install psycopg2-binary
 """
 
 import psycopg2
+import os
 from datetime import datetime
 
 DB_CONFIG = {
-    "host": "localhost",
-    "port": 5432,
-    "dbname": "anomalies",
-    "user": "loganomaly",
-    "password": "loganomaly",
+    "host": os.environ.get("POSTGRES_HOST", "localhost"),
+    "port": int(os.environ.get("POSTGRES_PORT", "5432")),
+    "dbname": os.environ.get("POSTGRES_DB", "anomalies"),
+    "user": os.environ.get("POSTGRES_USER", "loganomaly"),
+    "password": os.environ.get("POSTGRES_PASSWORD", "loganomaly"),
 }
 
 
