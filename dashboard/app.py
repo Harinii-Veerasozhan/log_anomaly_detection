@@ -12,7 +12,7 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 import streamlit as st
 import pandas as pd
 import time
-from storage.database import get_all_anomalies, init_db
+from storage.postgres_database import get_all_anomalies, init_db
 
 st.set_page_config(page_title="IT Log Anomaly Dashboard", layout="wide")
 st.title("🖥️ Real-Time IT Log Anomaly Detection Dashboard")

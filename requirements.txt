@@ -5,3 +5,4 @@ pandas
 streamlit
 confluent-kafka
 psycopg2-binary
+pytest
