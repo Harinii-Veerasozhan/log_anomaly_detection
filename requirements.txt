@@ -6,3 +6,5 @@ streamlit
 confluent-kafka
 psycopg2-binary
 pytest
+drain3==0.9.11
+matplotlib==3.9.2

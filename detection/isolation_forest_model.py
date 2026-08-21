@@ -31,6 +31,8 @@ def train_model(training_entries, contamination: float = 0.05):
     X = np.array([entry_to_vector(e) for e in training_entries])
     model = IsolationForest(contamination=contamination, random_state=42)
     model.fit(X)
+    model.feature_means_ = np.mean(X, axis=0)
+    model.feature_stds_ = np.std(X, axis=0)
     joblib.dump(model, MODEL_PATH)
     print(f"Model trained on {len(training_entries)} entries, saved to {MODEL_PATH}")
     return model

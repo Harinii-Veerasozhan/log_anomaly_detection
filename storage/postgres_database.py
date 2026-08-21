@@ -40,7 +40,30 @@ def init_db():
             error_count INTEGER,
             ml_score REAL,
             rule_violations TEXT,
-            severity TEXT
+            severity TEXT,
+            explanation TEXT,
+            log_type TEXT DEFAULT 'system_metrics'
+        )
+    """)
+    cur.execute("ALTER TABLE anomalies ADD COLUMN IF NOT EXISTS explanation TEXT")
+    cur.execute("ALTER TABLE anomalies ADD COLUMN IF NOT EXISTS log_type TEXT DEFAULT 'system_metrics'")
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS remediation_actions (
+            id SERIAL PRIMARY KEY,
+            detected_at TIMESTAMP,
+            anomaly_id INTEGER REFERENCES anomalies(id),
+            action_type TEXT,
+            target TEXT,
+            status TEXT
+        )
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS blocked_entities (
+            id SERIAL PRIMARY KEY,
+            blocked_at TIMESTAMP,
+            identifier TEXT,
+            reason TEXT,
+            anomaly_id INTEGER REFERENCES anomalies(id)
         )
     """)
     conn.commit()
@@ -48,19 +71,47 @@ def init_db():
     conn.close()
 
 
-def save_anomaly(entry: dict, ml_score: float, rule_violations, severity: str = "MEDIUM"):
+def save_anomaly(entry: dict, ml_score: float, rule_violations, severity: str = "MEDIUM",
+                 explanation: str = "", log_type: str = "system_metrics"):
     conn = get_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO anomalies (detected_at, log_timestamp, server, cpu, mem,
                                 failed_logins, resp_ms, error_count, ml_score,
-                                rule_violations, severity)
-        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                                rule_violations, severity, explanation, log_type)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
     """, (
         datetime.now(), entry["timestamp"], entry["server"], entry["cpu"], entry["mem"],
         entry["failed_logins"], entry["resp_ms"], entry["error_count"],
-        ml_score, "; ".join(rule_violations), severity,
+        ml_score, "; ".join(rule_violations), severity, explanation, log_type,
     ))
+    anomaly_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+    return anomaly_id
+
+
+def save_remediation_action(anomaly_id, action_type: str, target: str, status: str = "SIMULATED"):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO remediation_actions (detected_at, anomaly_id, action_type, target, status)
+        VALUES (%s, %s, %s, %s, %s)
+    """, (datetime.now(), anomaly_id, action_type, target, status))
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def save_blocked_entity(anomaly_id, identifier: str, reason: str):
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO blocked_entities (blocked_at, identifier, reason, anomaly_id)
+        VALUES (%s, %s, %s, %s)
+    """, (datetime.now(), identifier, reason, anomaly_id))
     conn.commit()
     cur.close()
     conn.close()
